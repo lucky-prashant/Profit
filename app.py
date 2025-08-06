@@ -14,11 +14,16 @@ history = {pair: {"correct": 0, "total": 0} for pair in PAIRS}
 def fetch_candle(pair):
     try:
         url = f"https://api.twelvedata.com/time_series?symbol={pair}&interval=5min&outputsize=2&apikey={API_KEY}"
-        res = requests.get(url, timeout=10)
-        data = res.json()
+        response = requests.get(url, timeout=10)
+        data = response.json()
+
+        if "status" in data and data["status"] == "error":
+            print(f"API Error for {pair}: {data.get('message', 'Unknown')}")
+            return []
+
         return data.get("values", [])
     except Exception as e:
-        print(f"Error fetching data for {pair}: {e}")
+        print(f"Fetch error for {pair}: {e}")
         return []
 
 def analyze(pair, candle):
@@ -36,29 +41,27 @@ def analyze(pair, candle):
         reasons = []
         take_trade = False
 
-        # Logic 1: Body size filter
+        # Strategy logic
         if body > 0.0002:
-            reasons.append("Body is strong")
+            reasons.append("Strong candle body")
         else:
-            reasons.append("Body is weak")
+            reasons.append("Weak candle body")
 
-        # Logic 2: Wick pattern
         if wick_top > wick_bottom:
-            reasons.append("Top wick long → Bearish rejection")
+            reasons.append("Top wick rejection (Bearish)")
         elif wick_bottom > wick_top:
-            reasons.append("Bottom wick long → Bullish rejection")
+            reasons.append("Bottom wick rejection (Bullish)")
         else:
             reasons.append("Neutral wick")
 
-        # Logic 3: Momentum direction
         if direction == "CALL" and wick_bottom > wick_top and body > 0.0002:
             take_trade = True
-            reasons.append("Bullish momentum → Call")
+            reasons.append("Bullish strength → CALL")
         elif direction == "PUT" and wick_top > wick_bottom and body > 0.0002:
             take_trade = True
-            reasons.append("Bearish momentum → Put")
+            reasons.append("Bearish strength → PUT")
         else:
-            reasons.append("Unclear momentum")
+            reasons.append("Indecision")
 
         return {
             "direction": direction,
@@ -69,11 +72,12 @@ def analyze(pair, candle):
                 "high": high, "low": low
             }
         }
+
     except Exception as e:
         print(f"Analysis error for {pair}: {e}")
         return {
             "direction": "N/A",
-            "reason": [f"Error analyzing candle: {str(e)}"],
+            "reason": [f"Error analyzing candle for {pair}"],
             "status": "Error",
             "candle": {"open": 0, "close": 0, "high": 0, "low": 0}
         }
@@ -88,10 +92,10 @@ def predict():
     for pair in PAIRS:
         data = fetch_candle(pair)
         if len(data) >= 2:
-            latest, previous = data[0], data[1]
+            previous = data[1]
+            latest = data[0]
             result = analyze(pair, previous)
 
-            # Accuracy tracking
             predicted = result["direction"]
             actual = "CALL" if float(latest["close"]) > float(latest["open"]) else "PUT"
 
@@ -105,7 +109,7 @@ def predict():
         else:
             results[pair] = {
                 "direction": "N/A",
-                "reason": [f"Data error. Could not fetch candles for {pair}"],
+                "reason": [f"No candle data found for {pair}"],
                 "status": "Error",
                 "accuracy": 0,
                 "candle": {"open": 0, "close": 0, "high": 0, "low": 0}
