@@ -1,36 +1,22 @@
-let interval = null;
-
-function startPrediction() {
-    fetch("/start").then(() => {
-        document.getElementById("status").innerText = "Running";
-        interval = setInterval(fetchStatus, 3000);
-    });
-}
-
-function stopPrediction() {
-    fetch("/stop").then(() => {
-        document.getElementById("status").innerText = "Stopped";
-        clearInterval(interval);
-    });
-}
-
-function fetchStatus() {
-    fetch("/status")
-    .then(res => res.json())
-    .then(data => {
-        document.getElementById("status").innerText = data.running ? "Running" : "Stopped";
-        const resDiv = document.getElementById("results");
-        const acc = document.getElementById("accuracy");
-        acc.innerText = data.accuracy !== null ? `${data.accuracy}% (${data.correct}/${data.total})` : "--";
-
-        resDiv.innerHTML = "";
-        for (const pair in data.results) {
-            const dir = data.results[pair];
-            resDiv.innerHTML += `<p><strong>${pair}:</strong> ${dir}</p>`;
-        }
-
-        if (Object.keys(data.results).length > 0) {
-            document.getElementById("alertSound").play();
+function getResults() {
+    fetch("/predict").then(res => res.json()).then(data => {
+        const container = document.getElementById("results");
+        container.innerHTML = "";
+        for (const pair in data) {
+            const info = data[pair];
+            const html = `
+                <div class="card">
+                    <h3>${pair}</h3>
+                    <div class="candle">
+                        <div class="wick" style="height: ${(info.candle.high - info.candle.low) * 10000}px;"></div>
+                        <div class="body ${info.direction.toLowerCase()}" style="height: ${Math.abs(info.candle.close - info.candle.open) * 10000}px;"></div>
+                    </div>
+                    <p><strong>Prediction:</strong> ${info.direction}</p>
+                    <p><strong>Status:</strong> ${info.status}</p>
+                    <p><strong>Reason:</strong> ${info.reason.join(", ")}</p>
+                    <p><strong>Accuracy:</strong> ${info.accuracy}%</p>
+                </div>`;
+            container.innerHTML += html;
         }
     });
 }
