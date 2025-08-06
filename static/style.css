@@ -1,52 +1,68 @@
 body {
-    font-family: Arial;
-    padding: 20px;
-    background: #f4f4f4;
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
+    text-align: center;
 }
-button {
-    padding: 10px 20px;
-    font-size: 16px;
-}
-.grid {
-    display: flex;
-    justify-content: space-between;
-    gap: 20px;
+
+h1 {
     margin-top: 20px;
+    font-size: 28px;
 }
-.card {
-    background: white;
-    padding: 15px;
+
+button {
+    padding: 12px 24px;
+    font-size: 16px;
+    margin-bottom: 20px;
+    background-color: #3c78d8;
+    color: white;
+    border: none;
+    cursor: pointer;
     border-radius: 5px;
-    width: 260px;
-    height: 380px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+button:disabled {
+    background-color: gray;
+    cursor: not-allowed;
+}
+
+.results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 0 20px;
+}
+
+.result-box {
+    background-color: white;
+    border-radius: 10px;
+    padding: 15px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    text-align: left;
+}
+
+.result-box h2 {
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.candle-frame {
+    width: 40px;
+    margin: 10px auto;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    align-items: center;
 }
-.candle {
-    height: 120px;
-    width: 20px;
-    position: relative;
-    margin: 10px auto;
-}
-.wick {
+
+.wick-top, .wick-bottom {
     width: 2px;
-    height: 100%;
-    background: black;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
+    background-color: black;
 }
+
 .body {
-    width: 12px;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
+    width: 20px;
+    background-color: green;
 }
-.body.call {
-    background: green;
-}
-.body.put {
-    background: red;
+
+.body.red {
+    background-color: red;
 }
