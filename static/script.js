@@ -1,47 +1,44 @@
-function getResults() {
-    fetch("/predict").then(res => res.json()).then(data => {
-        const container = document.getElementById("results");
+async function analyze() {
+    const btn = document.getElementById("analyzeBtn");
+    btn.innerText = "In Progress...";
+    btn.disabled = true;
+
+    try {
+        const res = await fetch("/predict");
+        const data = await res.json();
+        const container = document.getElementById("result-container");
         container.innerHTML = "";
+
         for (const pair in data) {
-            const info = data[pair];
-            const high = info.candle.high;
-            const low = info.candle.low;
-            const open = info.candle.open;
-            const close = info.candle.close;
+            const item = data[pair];
+            const box = document.createElement("div");
+            box.className = "result-box";
 
-            // Prevent div errors when candle data is missing
-            if (high === 0 && low === 0) {
-                container.innerHTML += `
-                    <div class="card">
-                        <h3>${pair}</h3>
-                        <p style="color:red;">No candle data available</p>
-                    </div>`;
-                continue;
-            }
+            const candle = item.candle;
+            const candleColor = candle.close > candle.open ? "green" : "red";
+            const wickTop = candle.high - Math.max(candle.open, candle.close);
+            const wickBottom = Math.min(candle.open, candle.close) - candle.low;
+            const bodyHeight = Math.abs(candle.close - candle.open);
 
-            // Calculate percentage for wick and body positions
-            const range = high - low || 1; // avoid divide by zero
-            const bodyHeight = Math.abs(close - open) / range * 100;
-            const wickBottom = (Math.min(open, close) - low) / range * 100;
-
-            const candleHTML = `
-                <div class="candle">
-                    <div class="wick"></div>
-                    <div class="body ${info.direction.toLowerCase()}"
-                         style="height:${bodyHeight}%; bottom:${wickBottom}%;">
-                    </div>
-                </div>`;
-
-            const html = `
-                <div class="card">
-                    <h3>${pair}</h3>
-                    ${candleHTML}
-                    <p><strong>Prediction:</strong> ${info.direction}</p>
-                    <p><strong>Status:</strong> ${info.status}</p>
-                    <p><strong>Reason:</strong> ${info.reason.join(", ")}</p>
-                    <p><strong>Accuracy:</strong> ${info.accuracy}%</p>
-                </div>`;
-            container.innerHTML += html;
+            box.innerHTML = `
+                <h2>${pair}</h2>
+                <div class="candle-frame">
+                    <div class="wick-top" style="height: ${wickTop * 1000}px;"></div>
+                    <div class="body ${candleColor}" style="height: ${bodyHeight * 1000}px;"></div>
+                    <div class="wick-bottom" style="height: ${wickBottom * 1000}px;"></div>
+                </div>
+                <p><strong>Prediction:</strong> ${item.direction}</p>
+                <p><strong>Status:</strong> ${item.status}</p>
+                <p><strong>Accuracy:</strong> ${item.accuracy}%</p>
+                <p><strong>Reasoning:</strong></p>
+                <ul>${item.reason.map(r => `<li>${r}</li>`).join("")}</ul>
+            `;
+            container.appendChild(box);
         }
-    });
+    } catch (e) {
+        alert("Error fetching prediction");
+    } finally {
+        btn.innerText = "Analyze";
+        btn.disabled = false;
+    }
 }
