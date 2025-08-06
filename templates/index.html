@@ -1,16 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Live Candle Predictor - Mumbai Time</title>
+    <title>CWRV Final Predictor</title>
+    <link rel="stylesheet" href="/static/style.css">
     <script src="/static/script.js"></script>
 </head>
 <body>
-    <h2>CWRV Live Predictor (Mumbai Time)</h2>
-    <button onclick="startPrediction()">Start</button>
-    <button onclick="stopPrediction()">Stop</button>
-    <h3>Status: <span id="status">Stopped</span></h3>
-    <h4>Accuracy: <span id="accuracy">--</span></h4>
-    <div id="results"></div>
-    <audio id="alertSound" src="/static/alert.mp3" preload="auto"></audio>
+    <h2>CWRV Predictor (5 Pairs)</h2>
+    <button onclick="getResults()">Show Result</button>
+    <div id="results" class="grid"></div>
 </body>
 </html>
