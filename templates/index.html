@@ -1,1 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Advanced CWRV Predictor</title>
+</head>
+<body>
+    <h2>Advanced CWRV Candle Predictor (Live)</h2>
+    <form method="post">
+        <label>Forex Pair:</label>
+        <select name="pair">
+            {% for pair in pairs %}
+                <option value="{{ pair }}" {% if pair == selected_pair %}selected{% endif %}>{{ pair }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Predict</button>
+    </form>
 
+    {% if prediction %}
+        <h3>Prediction: <span style="color:blue">{{ prediction }}</span></h3>
+    {% endif %}
+
+    {% if accuracy is not none %}
+        <p><strong>Accuracy:</strong> {{ accuracy }}% ({{ correct }}/{{ total }})</p>
+    {% endif %}
+
+    {% if candles %}
+        <h4>Recent Candles:</h4>
+        <ul>
+            {% for c in candles[:10] %}
+                <li>{{ c.datetime }} - O: {{ c.open }} H: {{ c.high }} L: {{ c.low }} C: {{ c.close }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</body>
+</html>
