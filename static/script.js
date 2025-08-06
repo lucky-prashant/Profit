@@ -4,13 +4,24 @@ function getResults() {
         container.innerHTML = "";
         for (const pair in data) {
             const info = data[pair];
+            const high = info.candle.high;
+            const low = info.candle.low;
+            const open = info.candle.open;
+            const close = info.candle.close;
+            const bodyHeight = Math.abs(close - open) / (high - low) * 100;
+            const wickBottom = (Math.min(open, close) - low) / (high - low) * 100;
+
+            const candleHTML = `
+                <div class="candle">
+                    <div class="wick" style="height: 100%;"></div>
+                    <div class="body ${info.direction.toLowerCase()}" 
+                         style="height: ${bodyHeight}%; bottom: ${wickBottom}%;"></div>
+                </div>`;
+
             const html = `
                 <div class="card">
                     <h3>${pair}</h3>
-                    <div class="candle">
-                        <div class="wick" style="height: ${(info.candle.high - info.candle.low) * 10000}px;"></div>
-                        <div class="body ${info.direction.toLowerCase()}" style="height: ${Math.abs(info.candle.close - info.candle.open) * 10000}px;"></div>
-                    </div>
+                    ${candleHTML}
                     <p><strong>Prediction:</strong> ${info.direction}</p>
                     <p><strong>Status:</strong> ${info.status}</p>
                     <p><strong>Reason:</strong> ${info.reason.join(", ")}</p>
