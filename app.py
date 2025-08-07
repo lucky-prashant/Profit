@@ -6,7 +6,7 @@ import pytz
 app = Flask(__name__)
 
 API_KEY = "b7ea33d435964da0b0a65b1c6a029891"
-PAIRS = ["EUR/USD", "GBP/USD", "USD/JPY", "EUR/JPY", "AUD/USD"]
+PAIRS = ["EUR/USD", "GBP/USD", "USD/JPY", "EUR/JPY", "AUD/CAD"]
 IST = pytz.timezone("Asia/Kolkata")
 
 candle_cache = {}
