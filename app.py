@@ -10,7 +10,7 @@ PAIRS = ["EUR/USD", "GBP/USD", "USD/JPY", "EUR/JPY", "AUD/CAD"]
 IST = pytz.timezone("Asia/Kolkata")
 
 candle_cache = {}
-history = {pair: {"correct": 0, "total": 0} for pair in PAIRS]
+history = {pair: {"correct": 0, "total": 0} for pair in PAIRS}
 
 def fetch_candles(pair, count=30):
     try:
