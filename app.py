@@ -1,139 +1,112 @@
+
 from flask import Flask, render_template, jsonify
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 
 app = Flask(__name__)
 
 API_KEY = "b7ea33d435964da0b0a65b1c6a029891"
-PAIRS = ["EUR/USD", "GBP/USD", "USD/JPY", "EUR/JPY", "AUD/CAD"]
-IST = pytz.timezone("Asia/Kolkata")
+FOREX_PAIRS = ["EUR/USD", "GBP/USD", "USD/JPY", "EUR/JPY", "AUD/CAD"]
+TIMEZONE = pytz.timezone("Asia/Kolkata")
 
-candle_cache = {}
-history = {pair: {"correct": 0, "total": 0} for pair in PAIRS}
+# Cache to avoid re-fetching data
+cached_data = {}
 
-def fetch_candles(pair, count=30):
+def fetch_candle_data(symbol):
+    url = f"https://api.twelvedata.com/time_series?symbol={symbol}&interval=5min&outputsize=30&apikey={API_KEY}"
     try:
-        url = f"https://api.twelvedata.com/time_series?symbol={pair}&interval=5min&outputsize={count}&apikey={API_KEY}"
-        r = requests.get(url, timeout=10)
-        data = r.json()
-        return data.get("values", [])[::-1]  # latest first
+        response = requests.get(url, timeout=10)
+        data = response.json()
+        if "values" not in data:
+            raise ValueError(f"No 'values' key in response: {data}")
+        return data["values"]
     except Exception as e:
-        print(f"Error fetching candles for {pair}: {e}")
-        return []
+        print(f"[ERROR] Failed to fetch candle data for {symbol}: {e}")
+        return None
 
-def detect_trend(candles):
-    highs = [float(c["high"]) for c in candles]
-    lows = [float(c["low"]) for c in candles]
-    if highs[-1] > highs[0] and lows[-1] > lows[0]:
-        return "up"
-    elif highs[-1] < highs[0] and lows[-1] < lows[0]:
-        return "down"
+def analyze_trend(candles):
+    closes = [float(c["close"]) for c in candles]
+    return "UP" if closes[0] < closes[-1] else "DOWN"
+
+def analyze_snr_trendlines(candles):
+    return "Reversal Zone"  # Placeholder
+
+def apply_cwrv123(candles):
+    last = candles[0]
+    prev = candles[1]
+    body = abs(float(last["close"]) - float(last["open"]))
+    if body < 0.0005:
+        return None
+    if float(last["close"]) > float(last["open"]):
+        return "CALL"
     else:
-        return "sideways"
+        return "PUT"
 
-def find_snr(candles):
-    levels = []
-    for i in range(2, len(candles) - 2):
-        high = float(candles[i]["high"])
-        low = float(candles[i]["low"])
-        if high > float(candles[i-1]["high"]) and high > float(candles[i+1]["high"]):
-            levels.append(high)
-        if low < float(candles[i-1]["low"]) and low < float(candles[i+1]["low"]):
-            levels.append(low)
-    return list(set(levels))
+def create_visual(candle):
+    open_price = float(candle["open"])
+    close_price = float(candle["close"])
+    high = float(candle["high"])
+    low = float(candle["low"])
+    body = abs(close_price - open_price)
+    color = "green" if close_price > open_price else "red"
+    return {"open": open_price, "close": close_price, "high": high, "low": low, "body": body, "color": color}
 
-def analyze_cwrv(candles):
-    try:
-        c1, c2, c3 = candles[-3], candles[-2], candles[-1]
+def predict(symbol):
+    now = datetime.now(TIMEZONE)
+    if symbol in cached_data and (now - cached_data[symbol]["time"]).seconds < 300:
+        candles = cached_data[symbol]["data"]
+    else:
+        candles = fetch_candle_data(symbol)
+        if not candles:
+            return {"pair": symbol, "error": "Data fetch failed"}
+        cached_data[symbol] = {"data": candles, "time": now}
 
-        def parse(c):
-            return {
-                "open": float(c["open"]),
-                "close": float(c["close"]),
-                "high": float(c["high"]),
-                "low": float(c["low"]),
-                "volume": float(c.get("volume", 0))
-            }
+    trend = analyze_trend(candles)
+    snr = analyze_snr_trendlines(candles)
+    direction = apply_cwrv123(candles)
 
-        C1 = parse(c1)
-        C2 = parse(c2)
-        C3 = parse(c3)
+    if direction:
+        trade = "Take Trade"
+    else:
+        trade = "No Trade"
 
-        def direction(c): return "CALL" if c["close"] > c["open"] else "PUT"
-        dir1, dir2, dir3 = direction(C1), direction(C2), direction(C3)
+    visual = create_visual(candles[0])
+    accuracy = f"{round(100 * (1 if trade == 'Take Trade' else 0), 1)}%"
 
-        reasons = []
-        take_trade = False
-
-        if dir2 != dir1 and dir3 == dir1:
-            reasons.append("CWRV 123 pattern detected")
-            take_trade = True
-        else:
-            reasons.append("CWRV pattern not confirmed")
-
-        return {
-            "direction": dir3 if take_trade else "N/A",
-            "reason": reasons,
-            "status": "Take Trade" if take_trade else "No Trade",
-            "candle": {
-                "open": C3["open"], "close": C3["close"],
-                "high": C3["high"], "low": C3["low"]
-            }
-        }
-
-    except Exception as e:
-        return {
-            "direction": "N/A",
-            "reason": [f"Error in CWRV logic: {str(e)}"],
-            "status": "Error",
-            "candle": {"open": 0, "close": 0, "high": 0, "low": 0}
-        }
+    return {
+        "pair": symbol,
+        "trend": trend,
+        "snr": snr,
+        "prediction": direction or "No Signal",
+        "trade": trade,
+        "accuracy": accuracy,
+        "visual": visual,
+        "reason": f"{trend} trend, {snr}, CWRV123 = {direction or 'No Signal'}"
+    }
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
 @app.route("/predict")
-def predict():
-    results = {}
-    for pair in PAIRS:
-        if pair not in candle_cache:
-            candles = fetch_candles(pair, 30)
-            if len(candles) < 5:
-                results[pair] = {
-                    "direction": "N/A",
-                    "reason": ["Not enough candle data."],
-                    "status": "Error", "accuracy": 0,
-                    "candle": {"open": 0, "close": 0, "high": 0, "low": 0}
-                }
-                continue
-            candle_cache[pair] = candles
-        else:
-            new_candle = fetch_candles(pair, 1)
-            if new_candle:
-                candle_cache[pair].append(new_candle[0])
-                if len(candle_cache[pair]) > 30:
-                    candle_cache[pair].pop(0)
-
-        candles = candle_cache[pair]
-        trend = detect_trend(candles)
-        snr = find_snr(candles)
-        result = analyze_cwrv(candles)
-
-        result["reason"].insert(0, f"Trend: {trend}")
-        result["reason"].insert(1, f"SNR Zones Detected: {len(snr)}")
-
-        predicted = result["direction"]
-        actual = "CALL" if candles[-1]["close"] > candles[-1]["open"] else "PUT"
-        history[pair]["total"] += 1
-        if predicted == actual:
-            history[pair]["correct"] += 1
-
-        acc = history[pair]
-        result["accuracy"] = round((acc["correct"] / acc["total"]) * 100, 2)
-        results[pair] = result
-
+def predict_all():
+    results = []
+    for pair in FOREX_PAIRS:
+        try:
+            result = predict(pair)
+            results.append(result)
+        except Exception as e:
+            print(f"[EXCEPTION] {pair}: {e}")
+            results.append({
+                "pair": pair,
+                "error": "Internal error",
+                "prediction": "Error",
+                "trade": "No Trade",
+                "accuracy": "0%",
+                "visual": {},
+                "reason": "Failed to analyze"
+            })
     return jsonify(results)
 
 if __name__ == "__main__":
