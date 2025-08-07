@@ -1,13 +1,123 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>CWRV Predictor</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body {
+            font-family: Arial;
+            text-align: center;
+        }
+        .pair-container {
+            display: inline-block;
+            width: 180px;
+            margin: 15px;
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
+        canvas {
+            background: #f9f9f9;
+            border: 1px solid #ccc;
+        }
+        .status {
+            font-weight: bold;
+            margin-top: 5px;
+        }
+    </style>
 </head>
 <body>
-    <h1>CWRV 123 Candle Predictor</h1>
-    <button id="analyzeBtn" onclick="analyze()">Analyze</button>
-    <div id="result-container" class="results-grid"></div>
-    <script src="/static/script.js"></script>
+    <h1>CWRV Predictor</h1>
+    <button onclick="fetchPrediction()" id="analyzeBtn">Analyze</button>
+    <div id="results"></div>
+
+    <script>
+        const pairs = ["EUR/USD", "GBP/USD", "USD/JPY", "EUR/JPY", "AUD/CAD"];
+
+        function fetchPrediction() {
+            const btn = document.getElementById("analyzeBtn");
+            btn.innerText = "In Progress...";
+            btn.disabled = true;
+
+            fetch("/predict")
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("results").innerHTML = "";
+                    for (let pair of pairs) {
+                        const result = data[pair];
+
+                        const container = document.createElement("div");
+                        container.className = "pair-container";
+
+                        const canvas = document.createElement("canvas");
+                        canvas.width = 100;
+                        canvas.height = 120;
+                        drawCandle(canvas, result.candle);
+
+                        container.appendChild(canvas);
+                        container.innerHTML += `
+                            <div><strong>${pair}</strong></div>
+                            <div>Prediction: ${result.direction}</div>
+                            <div>Status: <span class="status">${result.status}</span></div>
+                            <div>Accuracy: ${result.accuracy}%</div>
+                            <div><small>${result.reason.join("<br>")}</small></div>
+                        `;
+                        document.getElementById("results").appendChild(container);
+                    }
+
+                    btn.innerText = "Analyze";
+                    btn.disabled = false;
+                })
+                .catch(err => {
+                    alert("Prediction error: " + err);
+                    btn.innerText = "Analyze";
+                    btn.disabled = false;
+                });
+        }
+
+        function drawCandle(canvas, candle) {
+            const ctx = canvas.getContext("2d");
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const { open, close, high, low } = candle;
+
+            if (open === 0 && close === 0) {
+                ctx.fillStyle = "gray";
+                ctx.fillText("No data", 10, 60);
+                return;
+            }
+
+            // Price to pixel conversion
+            const maxPrice = Math.max(high, open, close);
+            const minPrice = Math.min(low, open, close);
+            const range = maxPrice - minPrice || 0.0001;  // prevent divide by zero
+
+            const scaleY = canvas.height / range;
+
+            const y = price => canvas.height - (price - minPrice) * scaleY;
+
+            const candleX = 40;
+            const candleWidth = 20;
+
+            const bodyTop = Math.min(open, close);
+            const bodyBottom = Math.max(open, close);
+
+            const bodyTopY = y(bodyTop);
+            const bodyHeight = Math.max(1, y(bodyBottom) - bodyTopY);  // at least 1px height
+
+            // Color
+            ctx.fillStyle = close > open ? "green" : close < open ? "red" : "gray";
+
+            // Draw wick
+            const wickX = candleX + candleWidth / 2;
+            ctx.strokeStyle = "black";
+            ctx.beginPath();
+            ctx.moveTo(wickX, y(high));
+            ctx.lineTo(wickX, y(low));
+            ctx.stroke();
+
+            // Draw body
+            ctx.fillRect(candleX, bodyTopY, candleWidth, bodyHeight);
+        }
+    </script>
 </body>
 </html>
