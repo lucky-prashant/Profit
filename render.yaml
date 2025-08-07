@@ -1,11 +1,7 @@
 services:
   - type: web
-    name: cwrv-predictor
-    env: python
-    buildCommand: ""
+    name: candle-predictor
+    runtime: python
+    buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
-    region: oregon
-    plan: free
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.10
+    env: python
