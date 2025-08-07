@@ -2,13 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>CWRV 123 Predictor</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <title>CWRV Predictor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>CWRV 123 Prediction</h1>
+    <h1>5-Min Candle Predictor</h1>
     <button id="analyzeBtn">Analyze</button>
-    <div id="results"></div>
-    <script src="/static/script.js"></script>
+    <div id="results" class="grid-container"></div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
